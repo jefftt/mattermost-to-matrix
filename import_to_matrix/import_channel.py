@@ -18,10 +18,14 @@ from import_to_matrix.matrix import (config, get_alias_mxid, get_app_service,
                     get_user_mxid_by_localpart, room_exists)
 from mautrix.types import RoomCreatePreset
 from mautrix.client.api.events import EventMethods
+import mautrix.errors
 from import_to_matrix.message_state import MessageState
 from export_from_mattermost.login import mm
 from progress.bar import Bar
 from mattermost import ApiException
+
+MAX_IMPORT_RETRIES = 3
+BASE_RETRY_DELAY = 2
 
 if not os.path.exists('../downloaded/channels.json'):
     print(f'channels.json not found! Run export_channel_list.py first.', file=sys.stderr)
@@ -168,6 +172,26 @@ async def create_channel(channel_id):
 
 
 
+async def import_message_with_retries(message, room_id, topic_equivalent, thread_equivalent, state, thread_sizes):
+    """
+    Import a single message, retrying transient failures a few times before giving up.
+    """
+    for attempt in range(1, MAX_IMPORT_RETRIES + 1):
+        try:
+            return await import_message(message, room_id, topic_equivalent, thread_equivalent, state, thread_sizes)
+        except asyncio.CancelledError:
+            raise
+        except (mautrix.errors.request.MatrixRequestError, ApiException, asyncio.TimeoutError) as exc:
+            retry_after_ms = getattr(exc, 'retry_after_ms', None)
+            if isinstance(exc, mautrix.errors.request.MLimitExceeded) and exc.retry_after_ms:
+                retry_after_ms = exc.retry_after_ms
+            if attempt == MAX_IMPORT_RETRIES:
+                raise
+            delay = (retry_after_ms / 1000) if retry_after_ms else BASE_RETRY_DELAY * attempt
+            print(f'Attempt {attempt}/{MAX_IMPORT_RETRIES} to import message {message["id"]} failed: {exc}. Retrying in {delay:.1f}s', file=sys.stderr)
+            await asyncio.sleep(delay)
+
+
 async def import_channel(channel_id):
     """
     Imports the entire Mattermost channel with given ID into a Matrix channel,
@@ -210,7 +234,7 @@ async def import_channel(channel_id):
     else:
         with Bar(f"Importing {channel['name']}", max=len(messages)) as bar:
             for message in reversed(messages):
-                await import_message(message, room_id, topic_equivalent, thread_equivalent, state, thread_sizes)
+                await import_message_with_retries(message, room_id, topic_equivalent, thread_equivalent, state, thread_sizes)
                 
                 bar.next()
 
