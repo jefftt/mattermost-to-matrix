@@ -234,6 +234,10 @@ async def import_channel(channel_id):
     else:
         with Bar(f"Importing {channel['name']}", max=len(messages)) as bar:
             for message in reversed(messages):
+                if state.get_matrix_event(message['id']):
+                    print(f'Skipping message {message["id"]} (already bridged)', file=sys.stderr)
+                    bar.next()
+                    continue
                 await import_message_with_retries(message, room_id, topic_equivalent, thread_equivalent, state, thread_sizes)
                 
                 bar.next()
