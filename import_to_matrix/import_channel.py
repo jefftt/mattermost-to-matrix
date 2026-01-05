@@ -24,8 +24,9 @@ from export_from_mattermost.login import mm
 from progress.bar import Bar
 from mattermost import ApiException
 
-MAX_IMPORT_RETRIES = 3
-BASE_RETRY_DELAY = 2
+MAX_IMPORT_RETRIES = 100
+BASE_RETRY_DELAY = 0.5
+MAX_RETRY_DELAY = 1.0
 
 if not os.path.exists('../downloaded/channels.json'):
     print(f'channels.json not found! Run export_channel_list.py first.', file=sys.stderr)
@@ -188,6 +189,7 @@ async def import_message_with_retries(message, room_id, topic_equivalent, thread
             if attempt == MAX_IMPORT_RETRIES:
                 raise
             delay = (retry_after_ms / 1000) if retry_after_ms else BASE_RETRY_DELAY * attempt
+            delay = min(delay, MAX_RETRY_DELAY)
             print(f'Attempt {attempt}/{MAX_IMPORT_RETRIES} to import message {message["id"]} failed: {exc}. Retrying in {delay:.1f}s', file=sys.stderr)
             await asyncio.sleep(delay)
 
