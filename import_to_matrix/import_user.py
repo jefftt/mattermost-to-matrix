@@ -15,6 +15,15 @@ if not os.path.exists('../downloaded/users.json'):
 
 users = json.load(open('../downloaded/users.json'))
 
+# Explicit mapping from Mattermost usernames to preferred display names
+USERNAME_DISPLAY_MAP = {
+    "wally": "walter",
+    "vuu": "vu",
+    "jeff": "jeff",
+    "tommy": "tommy",
+    "dmchu": "dan",
+}
+
 def get_mattermost_user(user_id):
     """
     Get the Mattermost record from the given user, by querying Mattermost
@@ -39,10 +48,9 @@ def get_displayname(user: dict):
     full_name = (user['first_name']+' '+user['last_name']).strip().replace('  ', ' ')
     username = user['username']
 
-    if config.prefer_usernames or not full_name:
-        return username
-    else:
-        return full_name
+    chosen_name = username if config.prefer_usernames or not full_name else full_name
+    # Override using the username-based mapping if present
+    return USERNAME_DISPLAY_MAP.get(username, chosen_name)
 
 
 async def create_user(mxid, display_name, avatar_mxc=None, avatar_bytes=None, avatar_filename=None, is_zephyr=False):
@@ -130,4 +138,3 @@ async def import_user(user_id):
     """
     user = get_mattermost_user(user_id)
     return await import_user_from_json(user)
-
