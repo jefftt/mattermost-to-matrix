@@ -13,6 +13,15 @@ from mautrix.util.logging import TraceLogger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import config
 
+# Explicit mapping from Mattermost usernames to Matrix localparts.
+USERNAME_MAP = {
+    "wally": "walter",
+    "vuu": "vu",
+    "jeff": "jeff",
+    "tommy": "tommy",
+    "dmchu": "dan",
+}
+
 # Let only one instance exist
 __app_service: AppServiceAPI = None
 
@@ -51,7 +60,8 @@ def get_bridged_user_mxid(username):
     Given the username of a bridged user, return the full MXID
     Given the localpart (username) of a local user, return the full MXID
     """
-    return get_user_mxid_by_localpart(config.matrix.user_prefix + username)
+    localpart = USERNAME_MAP.get(username, username)
+    return get_user_mxid_by_localpart(localpart)
 
 
 def get_alias_mxid(localpart):
