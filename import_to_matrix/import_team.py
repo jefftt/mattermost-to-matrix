@@ -47,7 +47,7 @@ async def create_space_for_team(team):
         alias_localpart=get_team_alias_localpart(team['name']),
         name=team['display_name'],
         creation_content=RoomCreateStateEventContent(type=RoomType.SPACE),
-        preset=RoomCreatePreset.PUBLIC,
+        preset=RoomCreatePreset.PRIVATE,
         topic=team['description'],
     )
 
